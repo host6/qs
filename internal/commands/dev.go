@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	contextPkg "github.com/untillpro/qs/internal/context"
 	"io"
 	"net/http"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	contextPkg "github.com/untillpro/qs/internal/context"
 
 	"github.com/atotto/clipboard"
 	"github.com/fatih/color"
@@ -107,7 +108,8 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 	}
 	if ok { // github issue
 		fmt.Print("Dev branch for issue #" + strconv.Itoa(issueNum) + " will be created. Agree?(y/n)")
-		_, _ = fmt.Scanln(&response)
+		// _, _ = fmt.Scanln(&response)
+		response = pushYes
 		if response == pushYes {
 			// Remote developer branch, linked to issue is created
 			branch, notes, err = gitcmds.DevIssue(cmd, wd, githubIssueURL, issueNum, args...)
@@ -141,6 +143,8 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 	if exists {
 		return fmt.Errorf("dev branch '%s' already exists", branch)
 	}
+
+	response = pushYes
 
 	switch response {
 	case pushYes:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -9,8 +10,13 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/stretchr/testify/require"
 
+	"github.com/untillpro/qs/internal/cmdproc"
 	"github.com/untillpro/qs/internal/systrun"
 )
+
+func TestRunner(t *testing.T) {
+	cmdproc.ExecRootCmd(context.Background(), []string{"qs", "dev", "-C", "c:/workspace/voedger"})
+}
 
 // TestForkOnExistingFork tests the case where a fork already exists
 func TestFork_OnExistingFork(t *testing.T) {

@@ -38,10 +38,11 @@ func CheckQsVer() bool {
 		fmt.Println("go install github.com/untillpro/qs@latest")
 		fmt.Println("-----------------------------------------")
 		fmt.Print("Ignore it and continue with current version(y/n)?")
-		var response string
-		_, _ = fmt.Scanln(&response)
+		return true
+		// var response string
+		// _, _ = fmt.Scanln(&response)
 
-		return response == pushYes
+		// return response == pushYes
 	}
 
 	return true
