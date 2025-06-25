@@ -53,7 +53,8 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 	var response string
 
 	if len(args) == 0 {
-		clipargs := strings.TrimSpace(getArgStringFromClipboard(cmd.Context()))
+		// clipargs := strings.TrimSpace(getArgStringFromClipboard(cmd.Context()))
+		clipargs := `https://github.com/voedger/voedger/issues/3826`
 		args = append(args, clipargs)
 	}
 	remoteURL := gitcmds.GetRemoteUpstreamURL(wd)
