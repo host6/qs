@@ -5,7 +5,7 @@ import (
 
 	"github.com/untillpro/goutils/logger"
 	"github.com/untillpro/qs/gitcmds"
-	"github.com/untillpro/qs/internal/commands/helper"
+	"github.com/untillpro/qs/internal/helper"
 )
 
 func Fork(wd string) error {
@@ -25,11 +25,11 @@ func Fork(wd string) error {
 	}
 
 	if err := gitcmds.MakeUpstream(wd, repo); err != nil {
-		logger.Verbose("Failed to set upstream: %v", err)
+		logger.Error("Failed to set upstream: %v", err)
 	}
 
 	if err := gitcmds.PopStashedFiles(wd); err != nil {
-		logger.Verbose("Failed to pop stashed files: %v", err)
+		logger.Error("Failed to pop stashed files: %v", err)
 	}
 
 	return nil

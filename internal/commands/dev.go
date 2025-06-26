@@ -24,9 +24,10 @@ import (
 
 	"github.com/untillpro/goutils/logger"
 	"github.com/untillpro/qs/gitcmds"
-	"github.com/untillpro/qs/internal/commands/helper"
+	contextPkg "github.com/untillpro/qs/internal/context"
+	"github.com/untillpro/qs/internal/helper"
 	"github.com/untillpro/qs/internal/notes"
-	"github.com/untillpro/qs/internal/types"
+	notesPkg "github.com/untillpro/qs/internal/notes"
 )
 
 func Dev(cmd *cobra.Command, wd string, args []string) error {
@@ -73,6 +74,7 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 			return fmt.Errorf("You are in %s/%s repo\nExecute 'qs fork' first\n", org, repo)
 		}
 	}
+
 	curBranch, isMain, err := gitcmds.IamInMainBranch(wd)
 	if err != nil {
 		return err
@@ -112,8 +114,7 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 		// _, _ = fmt.Scanln(&response)
 		response = pushYes
 		if response == pushYes {
-			// Remote developer branch, linked to issue is created
-			branch, notes, err = gitcmds.DevIssue(cmd, wd, githubIssueURL, issueNum, args...)
+			branch, notes, err = gitcmds.GenerateDevBranchNameAndNotes(wd, githubIssueURL, issueNum, args...)
 			if err != nil {
 				return err
 			}
@@ -170,11 +171,11 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 			}
 		}
 
-		branchIsFork := false
+		branchIsInFork := false
 		if len(remoteURL) > 0 {
-			branchIsFork = true
+			branchIsInFork = true
 		}
-		if err := gitcmds.Dev(wd, branch, notes, branchIsFork); err != nil {
+		if err := gitcmds.Dev(wd, branch, notes, branchIsInFork); err != nil {
 			return err
 		}
 	default:
@@ -185,7 +186,7 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 
 	// Create pre-commit hook to control committing file size
 	if err := setPreCommitHook(wd); err != nil {
-		logger.Verbose("Error setting pre-commit hook:", err)
+		logger.Error("Error setting pre-commit hook:", err)
 	}
 	// Unstash changes
 	if stashedUncommittedChanges {
@@ -290,7 +291,7 @@ func getBranchName(ignoreEmptyArg bool, args ...string) (branch string, comments
 	}
 	branch = cleanArgfromSpecSymbols(branch)
 	// Prepare new notes
-	notesObj, err := notes.Serialize("", "", types.BranchTypeDev)
+	notesObj, err := notes.Serialize("", "", notesPkg.BranchTypeDev)
 	if err != nil {
 		return "", []string{}, err
 	}
@@ -356,7 +357,7 @@ func getJiraBranchName(wd string, args ...string) (branch string, comments []str
 			} else {
 				jiraTicketURL := matches[0] // Full JIRA ticket URL
 				// Prepare new notes
-				notesObj, err := notes.Serialize("", jiraTicketURL, types.BranchTypeDev)
+				notesObj, err := notes.Serialize("", jiraTicketURL, notesPkg.BranchTypeDev)
 				if err != nil {
 					return "", nil, err
 				}

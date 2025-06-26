@@ -5,22 +5,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5/config"
 	"net/url"
 	"os"
 	osExec "os/exec"
 	"os/user"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/spf13/cobra"
+	goGitPkg "github.com/go-git/go-git/v5"
 
 	"github.com/untillpro/goutils/exec"
 	"github.com/untillpro/goutils/logger"
+	"github.com/untillpro/qs/internal/helper"
 	notesPkg "github.com/untillpro/qs/internal/notes"
-	"github.com/untillpro/qs/internal/types"
 	"github.com/untillpro/qs/utils"
 )
 
@@ -333,14 +333,16 @@ func Upload(wd string, commitMessageParts []string) error {
 
 	// Push notes to origin
 	err = new(exec.PipedExec).
-		Command(git, push, origin, "ref/notes/*").
+		Command(git, push, origin, "refs/notes/*:refs/notes/*").
 		WorkingDir(wd).
 		Run(os.Stdout, os.Stdout)
 	if err != nil {
 		return err
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	// Push branch to origin
 	stdout, stderr, err := new(exec.PipedExec).
@@ -348,11 +350,11 @@ func Upload(wd string, commitMessageParts []string) error {
 		WorkingDir(wd).
 		RunToStrings()
 	if err != nil {
-		logger.Verbose(stderr)
+		logger.Error(stderr)
 
 		return err
 	}
-	logger.Verbose(stdout)
+	logger.Error(stdout)
 
 	return nil
 }
@@ -691,7 +693,9 @@ func MakeUpstream(wd string, repo string) error {
 		return err
 	}
 	// delay to ensure remote is added
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	err = new(exec.PipedExec).
 		Command(git, "fetch", "origin").
@@ -725,9 +729,9 @@ func GetIssueRepoFromURL(url string) (repoName string) {
 	return
 }
 
-// DevIssue
-func DevIssue(cmd *cobra.Command, wd string, githubIssueURL string, issueNumber int, args ...string) (branch string, notes []string, err error) {
-	repo, org, err := GetRepoAndOrgName(wd)
+// GenerateDevBranchNameAndNotes
+func GenerateDevBranchNameAndNotes(wd string, githubIssueURL string, issueNumber int, args ...string) (branch string, notes []string, err error) {
+	repo, _, err := GetRepoAndOrgName(wd)
 	if err != nil {
 		return "", nil, fmt.Errorf("GetRepoAndOrgName failed: %w", err)
 	}
@@ -737,8 +741,7 @@ func DevIssue(cmd *cobra.Command, wd string, githubIssueURL string, issueNumber 
 	}
 
 	strIssueNum := strconv.Itoa(issueNumber)
-	myrepo := org + slash + repo
-	parentrepo, err := GetParentRepoName(wd)
+	parentRepoName, err := GetParentRepoName(wd)
 	if err != nil {
 		return "", nil, err
 	}
@@ -747,50 +750,41 @@ func DevIssue(cmd *cobra.Command, wd string, githubIssueURL string, issueNumber 
 		url := args[0]
 		issuerepo := GetIssueRepoFromURL(url)
 		if len(issuerepo) > 0 {
-			parentrepo = issuerepo
+			parentRepoName = issuerepo
 		}
 	}
 
-	err = new(exec.PipedExec).
-		Command("gh", "repo", "set-default", myrepo).
-		WorkingDir(wd).
-		Run(os.Stdout, os.Stdout)
+	branch, err = buildDevBranchName(githubIssueURL)
 	if err != nil {
 		return "", nil, err
 	}
 
-	branchName, err := buildDevBranchName(githubIssueURL)
-	if err != nil {
-		return "", nil, err
-	}
-
+	// check if branch already exists in remote
 	stdout, stderr, err := new(exec.PipedExec).
-		Command("gh", "issue", "develop", strIssueNum, "--repo="+parentrepo, "--name", branchName).
+		Command(git, "ls-remote", "--heads", "origin", branch).
 		WorkingDir(wd).
 		RunToStrings()
 	if err != nil {
-		logger.Verbose(stderr)
+		logger.Error(stderr)
+
 		return "", nil, err
 	}
-	// delay to ensure branch is created
-	time.Sleep(500 * time.Millisecond)
-
-	branch = strings.TrimSpace(stdout)
-	segments := strings.Split(branch, slash)
-	branch = segments[len(segments)-1]
+	if len(stdout) > 0 {
+		return "", nil, fmt.Errorf("branch %s already exists in origin remote", branch)
+	}
 
 	if len(branch) == 0 {
 		return "", nil, errors.New("Can not create branch for issue")
 	}
 	// old-style notes
-	issueName := GetIssueNameByNumber(strIssueNum, parentrepo)
+	issueName := GetIssueNameByNumber(strIssueNum, parentRepoName)
 	comment := IssuePRTtilePrefix + " '" + issueName + "' "
 	body := ""
 	if len(issueName) > 0 {
 		body = IssueSign + strIssueNum + oneSpace + issueName
 	}
 	// Prepare new notes
-	notesObj, err := notesPkg.Serialize(githubIssueURL, "", types.BranchTypeDev)
+	notesObj, err := notesPkg.Serialize(githubIssueURL, "", notesPkg.BranchTypeDev)
 	if err != nil {
 		return "", nil, err
 	}
@@ -799,14 +793,14 @@ func DevIssue(cmd *cobra.Command, wd string, githubIssueURL string, issueNumber 
 }
 
 // getBranchTypeByName returns branch type based on branch name
-func getBranchTypeByName(branchName string) types.BranchType {
+func getBranchTypeByName(branchName string) notesPkg.BranchType {
 	switch {
 	case strings.HasSuffix(branchName, "-dev"):
-		return types.BranchTypeDev
+		return notesPkg.BranchTypeDev
 	case strings.HasSuffix(branchName, "-pr"):
-		return types.BranchTypePr
+		return notesPkg.BranchTypePr
 	default:
-		return types.BranchTypeUnknown
+		return notesPkg.BranchTypeUnknown
 	}
 }
 
@@ -866,13 +860,13 @@ func buildDevBranchName(issueURL string) (string, error) {
 }
 
 // GetBranchType returns branch type based on notes or branch name
-func GetBranchType(wd string) types.BranchType {
+func GetBranchType(wd string) notesPkg.BranchType {
 	notes, ok := GetNotes(wd)
 	if ok {
 		notesObj, ok := notesPkg.Deserialize(notes)
 		if !ok {
 			if isOldStyledBranch(notes) {
-				return types.BranchTypeDev
+				return notesPkg.BranchTypeDev
 			}
 		}
 
@@ -939,16 +933,13 @@ func Dev(wd, branch string, comments []string, branchIsInFork bool) error {
 		}
 	}
 
-	if err := pullOrigin(wd); err != nil {
-		return err
-	}
-
 	// If branch is not in fork, then pull from origin/main
 	remote := "origin"
 	if branchIsInFork {
 		// otherwise pull from upstream/main
 		remote = "upstream"
 	}
+
 	// Pull from UpstreamRepo to MainBranch with rebase
 	err = new(exec.PipedExec).
 		Command(git, pull, "--rebase", remote, mainBranch, "--no-edit").
@@ -966,7 +957,9 @@ func Dev(wd, branch string, comments []string, branchIsInFork bool) error {
 		return err
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	_, stderr, err := new(exec.PipedExec).
 		Command(git, "checkout", mainBranch).
@@ -1017,20 +1010,24 @@ func Dev(wd, branch string, comments []string, branchIsInFork bool) error {
 	if err != nil {
 		return err
 	}
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	stdout, stderr, err := new(exec.PipedExec).
 		Command(git, push, "-u", origin, branch).
 		WorkingDir(wd).
 		RunToStrings()
 	if err != nil {
-		logger.Verbose(stderr)
+		logger.Error(stderr)
 
 		return err
 	}
-	logger.Verbose(stdout)
+	logger.Error(stdout)
 
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	if chExist {
 		err = new(exec.PipedExec).
@@ -1469,7 +1466,7 @@ func waitPRChecks(parentrepo string, prurl string) *gchResponse {
 			fmt.Println("")
 			return &gchResponse{_err: errors.New(ErrTimer40Sec)}
 		default:
-			time.Sleep(time.Second)
+			helper.Delay()
 			fmt.Print(".")
 		}
 	}
@@ -1812,67 +1809,6 @@ func GawkInstalled() bool {
 	return err == nil
 }
 
-// GHInstalled returns is gh utility installed
-func GHInstalled() bool {
-	_, _, err := new(exec.PipedExec).
-		Command("gh", "--version").
-		RunToStrings()
-	return err == nil
-}
-
-// GHLoggedIn returns is gh logged in
-func GHLoggedIn() bool {
-	_, _, err := new(exec.PipedExec).
-		Command("gh", "auth", "status").
-		RunToStrings()
-	return err == nil
-}
-
-func GetInstalledQSVersion() (string, error) {
-	stdout, stderr, err := new(exec.PipedExec).
-		Command("go", "env", "GOPATH").
-		RunToStrings()
-	if err != nil {
-		return "", fmt.Errorf("GetInstalledVersion error: %s", stderr)
-	}
-
-	gopath := strings.TrimSpace(stdout)
-	if len(gopath) == 0 {
-		return "", errors.New("GetInstalledVersion error: \"GOPATH is not defined\"")
-	}
-	qsExe := "qs"
-	if runtime.GOOS == "windows" {
-		qsExe = "qs.exe"
-	}
-
-	stdout, stderr, err = new(exec.PipedExec).
-		Command("go", "version", "-m", gopath+"/bin/"+qsExe).
-		Command("grep", "-i", "-h", "mod.*github.com/untillpro/qs").
-		Command("gawk", "{print $3}").
-		RunToStrings()
-	if err != nil {
-		return "", fmt.Errorf("GetInstalledQSVersion error: %s", stderr)
-	}
-
-	return strings.TrimSpace(stdout), nil
-}
-
-func GetLastQSVersion() string {
-	stdouts, stderr, err := new(exec.PipedExec).
-		Command("go", "list", "-m", "-versions", "github.com/untillpro/qs").
-		RunToStrings()
-	if err != nil {
-		logger.Error("GetLastQSVersion error:", stderr)
-	}
-
-	arr := strings.Split(strings.TrimSpace(stdouts), oneSpace)
-	if len(arr) == 0 {
-		return ""
-	}
-
-	return arr[len(arr)-1]
-}
-
 func extractIntegerPrefix(input string) (string, error) {
 	// Define the regular expression pattern
 	pattern := `^\d+`
@@ -2002,6 +1938,36 @@ func GetCurrentBranchName(wd string) string {
 	return strings.TrimSpace(branchName)
 }
 
+// createRemote creates a remote in the cloned repository
+func CreateRemote(wd, remote, account, token, repoName string, isUpstream bool) error {
+	repo, err := goGitPkg.PlainOpen(wd)
+	if err != nil {
+		return fmt.Errorf("failed to open cloned repository: %w", err)
+	}
+
+	if err = repo.DeleteRemote(remote); err != nil {
+		if !errors.Is(err, goGitPkg.ErrRemoteNotFound) {
+			return fmt.Errorf("failed to delete %s remote: %w", remote, err)
+		}
+	}
+
+	remoteURL := BuildRemoteURL(account, token, repoName, isUpstream)
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: remote,
+		URLs: []string{remoteURL},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create %s remote: %w", remote, err)
+	}
+
+	return nil
+}
+
+// buildRemoteURL constructs the remote URL for cloning
+func BuildRemoteURL(account, token, repoName string, isUpstream bool) string {
+	return "https://" + account + ":" + token + "@github.com/" + account + "/" + repoName + ".git"
+}
+
 // IamInMainBranch checks if current branch is main branch
 // Returns:
 // - the name of current branch
@@ -2018,15 +1984,4 @@ func IamInMainBranch(wd string) (string, bool, error) {
 	mainbr := GetMainBranch(wd)
 
 	return curBr, strings.EqualFold(curBrOrigin, mainbr), err
-}
-
-func pullOrigin(wd string) error {
-
-	mainbr := GetMainBranch(wd)
-	_, _, err := new(exec.PipedExec).
-		Command(git, pull, origin, mainbr).
-		WorkingDir(wd).
-		RunToStrings()
-
-	return err
 }

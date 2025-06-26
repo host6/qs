@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/untillpro/qs/internal/helper"
 	"io"
 	netHttp "net/http"
 	"os"
@@ -73,7 +74,7 @@ func (st *SystemTest) createTestEnvironment() error {
 
 	// Setup upstream repo if needed
 	if st.cfg.UpstreamState != RemoteStateNull {
-		upstreamRepoURL := buildRemoteURL(
+		upstreamRepoURL := gitcmds.BuildRemoteURL(
 			st.cfg.GHConfig.UpstreamAccount,
 			st.cfg.GHConfig.UpstreamToken,
 			st.repoName,
@@ -86,7 +87,7 @@ func (st *SystemTest) createTestEnvironment() error {
 
 	// Setup fork repo if needed
 	if st.cfg.ForkState != RemoteStateNull {
-		forkRepoURL := buildRemoteURL(
+		forkRepoURL := gitcmds.BuildRemoteURL(
 			st.cfg.GHConfig.ForkAccount,
 			st.cfg.GHConfig.ForkToken,
 			st.repoName,
@@ -115,8 +116,10 @@ func (st *SystemTest) createTestEnvironment() error {
 	}
 
 	// Need some time to ensure the repo is created
-	// TODO: add check in loop with deadline instead of sleep
-	time.Sleep(time.Millisecond * 2000)
+	if helper.IsTest() {
+		helper.Delay()
+	}
+
 	if err := st.cloneRepo(cloneURL, st.cloneRepoPath, authToken); err != nil {
 		return err
 	}
@@ -156,7 +159,9 @@ func (st *SystemTest) configureCollaboration() error {
 		return err
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	if err := acceptPendingInvitations(st.cfg.GHConfig.ForkToken); err != nil {
 		return err
@@ -190,7 +195,7 @@ func inviteCollaborator(owner, repo, username, token string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		logger.Verbose("Invitation sent successfully.")
+		logger.Error("Invitation sent successfully.")
 	} else {
 		return fmt.Errorf("failed to invite: status %s", resp.Status)
 	}
@@ -232,11 +237,14 @@ func acceptPendingInvitations(token string) error {
 		defer acceptResp.Body.Close()
 
 		if acceptResp.StatusCode == 204 {
-			logger.Verbose("Accepted invitation ID %d\n", invite.ID)
+			logger.Error("Accepted invitation ID %d\n", invite.ID)
 		} else {
 			fmt.Printf("Failed to accept invitation ID %d: %s\n", invite.ID, acceptResp.Status)
 		}
-		time.Sleep(500 * time.Millisecond)
+
+		if helper.IsTest() {
+			helper.Delay()
+		}
 	}
 
 	return nil
@@ -551,43 +559,13 @@ func (st *SystemTest) cloneRepo(repoURL, clonePath, token string) error {
 	return nil
 }
 
-// buildRemoteURL constructs the remote URL for cloning
-func buildRemoteURL(account, token, repoName string, isUpstream bool) string {
-	return "https://" + account + ":" + token + "@github.com/" + account + "/" + repoName + ".git"
-}
-
-// createRemote creates a remote in the cloned repository
-func createRemote(wd, remote, account, token, repoName string, isUpstream bool) error {
-	repo, err := git.PlainOpen(wd)
-	if err != nil {
-		return fmt.Errorf("failed to open cloned repository: %w", err)
-	}
-
-	if err = repo.DeleteRemote(remote); err != nil {
-		if !errors.Is(err, git.ErrRemoteNotFound) {
-			return fmt.Errorf("failed to delete %s remote: %w", remote, err)
-		}
-	}
-
-	remoteURL := buildRemoteURL(account, token, repoName, isUpstream)
-	_, err = repo.CreateRemote(&config.RemoteConfig{
-		Name: remote,
-		URLs: []string{remoteURL},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create %s remote: %w", remote, err)
-	}
-
-	return nil
-}
-
 // configureRemotes sets up the remote configuration in the cloned repository
 func (st *SystemTest) configureRemotes(wd, repoName string) error {
 	// Configure remotes based on test scenario
 	switch {
 	case st.cfg.ForkState != RemoteStateNull && st.cfg.UpstreamState != RemoteStateNull:
 		// Both upstream and fork exist, configure both remotes
-		if err := createRemote(
+		if err := gitcmds.CreateRemote(
 			wd,
 			"origin",
 			st.cfg.GHConfig.ForkAccount,
@@ -598,7 +576,7 @@ func (st *SystemTest) configureRemotes(wd, repoName string) error {
 			return err
 		}
 
-		if err := createRemote(
+		if err := gitcmds.CreateRemote(
 			wd,
 			"upstream",
 			st.cfg.GHConfig.UpstreamAccount,
@@ -611,7 +589,7 @@ func (st *SystemTest) configureRemotes(wd, repoName string) error {
 
 	case st.cfg.ForkState == RemoteStateNull && st.cfg.UpstreamState != RemoteStateNull:
 		// Only upstream exists, make sure origin points to upstream
-		if err := createRemote(
+		if err := gitcmds.CreateRemote(
 			wd,
 			"origin",
 			st.cfg.GHConfig.UpstreamAccount,
@@ -852,7 +830,7 @@ func (st *SystemTest) setSyncState(
 		return fmt.Errorf("failed to run qs dev command: %w, stderr: %s", err, stderr)
 	}
 
-	logger.Verbose(stdout)
+	logger.Error(stdout)
 
 	if needChangeClone {
 		// Create 3 commits with different files
@@ -890,7 +868,9 @@ func (st *SystemTest) setSyncState(
 
 	}
 
-	time.Sleep(500 * time.Millisecond)
+	if helper.IsTest() {
+		helper.Delay()
+	}
 
 	return nil
 }
@@ -994,7 +974,7 @@ func (st *SystemTest) pushFromAnotherClone(originRemoteURL, branchName, headOfFi
 	}
 
 	// Step 4: Create the remote in the cloned repository
-	if err := createRemote(
+	if err := gitcmds.CreateRemote(
 		tempClonePath,
 		"origin",
 		account,
