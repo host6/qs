@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	contextPkg "github.com/untillpro/qs/internal/context"
-
 	"github.com/atotto/clipboard"
 	"github.com/fatih/color"
 	gitPkg "github.com/go-git/go-git/v5"
