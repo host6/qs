@@ -13,8 +13,12 @@ import (
 	"github.com/untillpro/qs/internal/systrun"
 )
 
-func TestRunner(t *testing.T) {
-	cmdproc.ExecRootCmd(context.Background(), []string{"qs", "dev", "-C", "c:/workspace/voedger"})
+func TestRunnerDev(t *testing.T) {
+	cmdproc.ExecRootCmd(context.Background(), []string{"qs", "dev", "-C", "c:/workspace/go/voedger"})
+}
+
+func TestRunnerPR(t *testing.T) {
+	cmdproc.ExecRootCmd(context.Background(), []string{"qs", "pr", "-C", "c:/workspace/go/voedger-clone"})
 }
 
 // TestForkOnExistingFork tests the case where a fork already exists

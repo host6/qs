@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-git/go-git/v5/config"
 	"net/url"
 	"os"
 	osExec "os/exec"
@@ -15,7 +16,7 @@ import (
 	"time"
 
 	goGitPkg "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/config"
+
 	"github.com/untillpro/goutils/exec"
 	"github.com/untillpro/goutils/logger"
 	"github.com/untillpro/qs/internal/helper"

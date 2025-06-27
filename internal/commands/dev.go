@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	contextPkg "github.com/untillpro/qs/internal/context"
-
 	"github.com/atotto/clipboard"
 	"github.com/fatih/color"
 	gitPkg "github.com/go-git/go-git/v5"
@@ -53,7 +51,8 @@ func Dev(cmd *cobra.Command, wd string, args []string) error {
 	var response string
 
 	if len(args) == 0 {
-		clipargs := strings.TrimSpace(getArgStringFromClipboard(cmd.Context()))
+		// clipargs := strings.TrimSpace(getArgStringFromClipboard(cmd.Context()))
+		clipargs := `https://github.com/voedger/voedger/issues/3826`
 		args = append(args, clipargs)
 	}
 	remoteURL := gitcmds.GetRemoteUpstreamURL(wd)
