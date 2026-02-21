@@ -1,1 +1,3 @@
 {"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3017","branch_type":1,"description":"qs: eliminate redudant git operations + use single commit message instead of set of messages on `qs u -m`"}
+
+[AIR-3017] qs: eliminate redudant git operations + use single commit message instead of set of messages on `qs u -m`
