@@ -1,0 +1,1 @@
+[AIR-3017] qs: eliminate redudant git operations + use single commit message instead of set of messages on `qs u -m`
