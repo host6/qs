@@ -1,1 +1,3 @@
 {"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3025","branch_type":1,"description":"qs: break oversized gitcmds.go by separate files"}
+
+[AIR-3025] qs: break oversized gitcmds.go by separate files
