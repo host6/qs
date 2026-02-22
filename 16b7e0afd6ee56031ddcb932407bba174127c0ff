@@ -1,3 +1,5 @@
 {"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3026","branch_type":1,"description":"qs: GetRootFolder is called in many places. Call it once"}
 
 [AIR-3026] qs: GetRootFolder is called in many places. Call it once
+
+https://untill.atlassian.net/browse/AIR-3026
