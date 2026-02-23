@@ -1,0 +1,1 @@
+[AIR-3041] qs: combine BuildDevBranchName, GetJiraBranchName, GetBranchName into single branch name creation func
