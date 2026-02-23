@@ -1,0 +1,1 @@
+{"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3041","branch_type":1,"description":"qs: combine BuildDevBranchName, GetJiraBranchName, GetBranchName into single branch name creation func"}
