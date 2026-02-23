@@ -1,0 +1,1 @@
+[AIR-3026] qs: GetRootFolder is called in many places. Call it once
