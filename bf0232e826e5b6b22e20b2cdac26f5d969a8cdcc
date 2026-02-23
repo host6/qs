@@ -1,3 +1,5 @@
 [AIR-3028] qs: fix buildDevBranchName: the functionality is duplicated
 
 https://untill.atlassian.net/browse/AIR-3028
+
+{"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3028","branch_type":2,"description":"qs: fix buildDevBranchName: the functionality is duplicated"}
