@@ -1,1 +1,3 @@
 [AIR-3026] qs: GetRootFolder is called in many places. Call it once
+
+https://untill.atlassian.net/browse/AIR-3026
