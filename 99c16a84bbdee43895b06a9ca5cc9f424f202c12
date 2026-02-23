@@ -1,0 +1,5 @@
+[AIR-3048] qs: use go 1.26.0, update deps
+
+https://untill.atlassian.net/browse/AIR-3048
+
+{"version":"1.0","github_issue_url":"","jira_ticket_url":"https://untill.atlassian.net/browse/AIR-3048","branch_type":2,"description":"qs: use go 1.26.0, update deps"}
